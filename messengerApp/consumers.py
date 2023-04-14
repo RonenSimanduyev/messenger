@@ -4,20 +4,41 @@ from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
 
 from .models import Message
-
+from django.contrib.auth import get_user_model
+User=get_user_model
 
 class ChatConsumer(WebsocketConsumer):
 
-    def fetch_meseeges(sefl ,data):
-        print('fetch')
-        pass
+    def fetch_messages(sefl ,data):
+        messages=Message.last_15_messages()
+        content ={
+            'messages':self.messages_to_json(messages)
+        }
+        self.send_chat_messages(content)
 
     def new_message(self,data):
-        print('send message')
-        pass
+        author=data['from']
+        author_user=User.objects.filter(username=author)[0]
+        message=Message.objects.Create(
+            author=author_user,
+            content=data['message']
+        )
 
+    def massages_to_json( self,messages):
+        result=[]
+        for message in messages:
+            result.append(self.message_to_json)
+        return result
+
+
+    def message_to_json(self,message):
+        return {
+            'author':self.message.author.username,
+            'content':self.message.content,
+            'timestamp':str(self.message.timestamp)
+        }
     commands={
-        'fetch_meseeges':fetch_meseeges,
+        'fetch_messages':fetch_messages,
         'new_message':new_message
     }
 
@@ -49,6 +70,10 @@ class ChatConsumer(WebsocketConsumer):
         async_to_sync(self.channel_layer.group_send)(
             self.room_group_name, {"type": "chat_message", "message": message}
         )
+
+
+    def send_message(self,message):
+        self.send(text_data=json.dumps(message))
 
     # Receive message from room group
     def chat_message(self, event):
