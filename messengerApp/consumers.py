@@ -9,7 +9,7 @@ User = get_user_model()
 class ChatConsumer(WebsocketConsumer):
 
     def fetch_messages(self, data):
-        messages = Message.last_15_messages()
+        messages = Message.last_10_messages()
         content = {
             'command': 'messages',
             'messages': self.messages_to_json(messages)
@@ -17,15 +17,12 @@ class ChatConsumer(WebsocketConsumer):
         self.send_message(content)
 
     def new_message(self, data):
+        print(data['message'],'new_message')
         author = data['from']
-        users= User.objects.filter(username=author)
-        if len(users)>0:
-            author_user = User.objects.filter(username=author)[0]
-            message = Message.objects.create(
+        author_user = User.objects.filter(username=author)[0]
+        message = Message.objects.create(
             author=author_user, 
             content=data['message'])
-        else: 
-            print('there isnt a user logged in')
         content = {
             'command': 'new_message',
             'message': self.message_to_json(message)
@@ -67,10 +64,13 @@ class ChatConsumer(WebsocketConsumer):
 
     def receive(self, text_data):
         data = json.loads(text_data)
+
         self.commands[data['command']](self, data)
+
         
 
     def send_chat_message(self, message):    
+        print(message,'send_chat_message')
         async_to_sync(self.channel_layer.group_send)(
             self.room_group_name,
             {
